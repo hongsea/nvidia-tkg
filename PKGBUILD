@@ -1,5 +1,6 @@
 # Created by: Tk-Glitch <ti3nou at gmail dot com>
 # Originally based on https://aur.archlinux.org/packages/nvidia-beta-all/
+# Chaotic repurpose by: PedroHLC <root at pedrohlc dot com>
 
 # Includes DKMS support, libglvnd compat, 32-bit libs and building for all kernels currently installed
 
@@ -21,137 +22,50 @@ plain '   /dNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNd/'
 plain '    `:sdNNNNNNNNNNNNNNNNNNNNNNNNNds:`'
 plain '       `-+shdNNNNNNNNNNNNNNNdhs+-`'
 plain '             `.-:///////:-.`'
-plain ''
+plain '         FOR ALL THE FROGS I LOVE'
 
 where="$PWD" # track basedir as different Arch based distros are moving srcdir around
 source "$where"/customization.cfg
 
-# Load external configuration file if present. Available variable values will overwrite customization.cfg ones.
-if [ -e "$_EXT_CONFIG_PATH" ]; then
-  source "$_EXT_CONFIG_PATH" && msg2 "External configuration file $_EXT_CONFIG_PATH will be used to override customization.cfg values." && msg2 ""
-fi
-
 # Auto-add kernel userpatches to source
-_autoaddpatch="false"
+_autoaddpatch="true"
 
-# Some people seem to believe making blank headers is a good idea
-if [ $(pacman -Qs linux-headers | head -c1 | wc -c) -eq 0 ]; then
-  error "A (correctly made?) linux-headers package can't be found."
-  plain "If you're sure it's installed, blame your kernel maintainer."
-  read -p "    Press enter to proceed anyway..."
+# I want to keep pulling this part from TkG's repo, so let keep it diff friendly
+if [[ -e tkg.dev ]]; then
+  msg2 "Producing dev build"
+  CONDITION="1"
+  _pkgname="-dev"
+  pkgrel=1
+else
+  CONDITION="2"
+  _pkgname=""
+  pkgrel=200
 fi
 
 # Package type selector
-if [ -z "$_driver_version" ] || [ -z "$_driver_branch" ] && [ ! -e options ]; then
-  read -p "    What driver version do you want?`echo $'\n    > 1.Vulkan dev: 440.66.15\n      2.440 series: 440.82\n      3.435 series: 435.21\n      4.430 series: 430.64\n      5.418 series: 418.113\n      6.415 series: 415.27\n      7.410 series: 410.104\n      8.396 series: 396.54\n      9.Custom version (396.xx series or higher)\n    choice[1-9?]: '`" CONDITION;
     if [ "$CONDITION" = "2" ]; then
       echo '_driver_version=440.82' > options
       echo '_md5sum=80eb4fd64124c5cab0ebf560f84a9bfa' >> options
       echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "3" ]; then
-      echo '_driver_version=435.21' > options
-      echo '_md5sum=050acb0aecc93ba15d1fc609ee82bebe' >> options
-      echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "4" ]; then
-      echo '_driver_version=430.64' > options
-      echo '_md5sum=a4ea35bf913616c71f104f15092df714' >> options
-      echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "5" ]; then
-      echo '_driver_version=418.113' > options
-      echo '_md5sum=0b21dbabaa25beed46c20a177e59642e' >> options
-      echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "6" ]; then
-      echo '_driver_version=415.27' > options
-      echo '_md5sum=f4777691c4673c808d82e37695367f6d' >> options
-      echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "7" ]; then
-      echo '_driver_version=410.104' > options
-      echo '_md5sum=4f3219b5fad99465dea399fc3f4bb866' >> options
-      echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "8" ]; then
-      echo '_driver_version=396.54' > options
-      echo '_md5sum=195afa93d400bdbb9361ede6cef95143' >> options
-      echo '_driver_branch=regular' >> options
-    elif [ "$CONDITION" = "9" ]; then
-      echo '_driver_version=custom' > options
-      read -p "What branch do you want?`echo $'\n> 1.Stable or regular beta\n  2.Vulkan dev\nchoice[1-2?]: '`" CONDITION;
-      if [ "$CONDITION" = "2" ]; then
-        echo '_driver_branch=vulkandev' >> options
-        read -p "Type the desired version number (examples: 415.18.02, 396.54.09): " _driver_version;
-      else
-        echo '_driver_branch=regular' >> options
-        read -p "Type the desired version number (examples: 410.57, 396.51): " _driver_version;
-      fi
-      echo "_md5sum='SKIP'" >> options
-      echo "_driver_version=$_driver_version" >> options
     else
       echo '_driver_version=440.66.15' > options
       echo '_md5sum=763d1ba1d3f166f55c3c4cb5b1d6986b' >> options
       echo '_driver_branch=vulkandev' >> options
     fi
-# Package type selector
-  if [ -z "$_dkms" ]; then
-    read -p "Build the dkms package or the regular one?`echo $'\n> 1.dkms\n  2.regular\nchoice[1-2?]: '`" CONDITION;
-      if [ "$CONDITION" = "2" ]; then
-        echo '_dkms="false"' >> options
-      else
-        echo '_dkms="true"' >> options
-      fi
-  fi
-else
-  _md5sum='SKIP'
-fi
 
-if [ -e options ]; then
   source options
-fi
 
-_pkgname_array=()
+_gcc_ver="gcc$(gcc --version | head -n 1 | grep -Po '[^ ]+$')"
+_target_linux=(linux-{{,lts-}tkg-{pds,bmq,muqss},clear,amd,amd-raven,rt,lqx,xanmod} linux{,-lts,-zen})
+_target_headers=(`printf '%s\n' "${_target_linux[@]}" | awk '{print $1"-headers"}'`)
+msg2 'core/linux{,-lts}-headers needs to be installed previously to running this!'
 
-if [ "$_driver_branch" = "vulkandev" ]; then
-  _branchname="nvidia-dev"
-else
-  _branchname="nvidia"
-fi
-
-# packages
-if [ "$_dkms" = "full" ]; then
-  _pkgname_array+=("$_branchname-dkms-tkg")
-  _pkgname_array+=("$_branchname-tkg")
-elif [ "$_dkms" = "true" ]; then
-  _pkgname_array+=("$_branchname-dkms-tkg")
-else
-  _pkgname_array+=("$_branchname-tkg")
-fi
-
-_pkgname_array+=("$_branchname-utils-tkg")
-
-if [ "$_lib32" = "true" ]; then
-  _pkgname_array+=("lib32-$_branchname-utils-tkg")
-fi
-
-if [ "$_opencl" = "true" ]; then
-  _pkgname_array+=("opencl-$_branchname-tkg")
-  if [ "$_lib32" = "true" ]; then
-    _pkgname_array+=("lib32-opencl-$_branchname-tkg")
-  fi
-fi
-
-if [ "$_nvsettings" = "true" ]; then
-  _pkgname_array+=("$_branchname-settings-tkg")
-fi
-
-if [ "$_eglwayland" = "true" ]; then
-  _pkgname_array+=("$_branchname-egl-wayland-tkg")
-fi
-
-pkgname=("${_pkgname_array[@]}")
+pkgname=(chaotic-nvidia${_pkgname}-{dkms,utils,egl-wayland,opencl}-tkg lib32-chaotic-nvidia${_pkgname}-{utils,opencl}-tkg)
 pkgver=$_driver_version
-pkgrel=112
 arch=('x86_64')
 url="http://www.nvidia.com/"
 license=('custom:NVIDIA')
-optdepends=('linux-headers' 'linux-lts-headers: Build the module for LTS Arch kernel')
+makedepends=("${_target_headers[@]}")
 options=('!strip')
 
 cp "$where"/patches/* "$where" && cp -r "$where"/system/* "$where"
@@ -192,8 +106,6 @@ source=($_source_name
         '5.6-ioremap.diff' # 5.6 additional ioremap workaround (<440.64)
         'kernel-5.7.patch' # 5.7 workaround
 )
-
-msg2 "Selected driver integrity check behavior (md5sum or SKIP): $_md5sum" # If the driver is "known", return md5sum. If it isn't, return SKIP
 
 md5sums=("$_md5sum"
          'cb27b0f4a78af78aa96c5aacae23256c'
@@ -262,7 +174,7 @@ prepare() {
   if [[ $pkgver = 440.26 ]]; then
     sed -i -e 's|$CC $CFLAGS -c conftest_headers$$.c|LC_ALL=C $CC $CFLAGS -c conftest_headers$$.c|g' kernel/conftest.sh
   fi
-  
+
   # 440.58.01 Unfrogging
   if [[ $pkgver = 440.58.01 ]]; then
     sed -i -e '/bug/d' nvidia-application-profiles-440.58.01-rc
@@ -701,7 +613,7 @@ opencl-nvidia-tkg() {
   pkgdesc="NVIDIA's OpenCL implemention for 'nvidia-utils-tkg'"
   depends=('zlib')
   optdepends=('opencl-headers: headers necessary for OpenCL development')
-  provides=("opencl-nvidia=$pkgver" "opencl-nvidia-tkg=$pkgver" 'opencl-driver')
+  provides=("opencl-nvidia=$pkgver" "opencl-nvidia-tkg=$pkgver" "chaotic-nvidia-opencl-tkg=$pkgver" 'opencl-driver')
   conflicts=('opencl-nvidia')
   cd $_pkg
 
@@ -717,10 +629,10 @@ opencl-nvidia-tkg() {
   install -d "$pkgdir"/usr/share/licenses/
   ln -s nvidia/ "$pkgdir"/usr/share/licenses/opencl-nvidia
 }
-package_opencl-nvidia-tkg() {
+package_chaotic-nvidia-opencl-tkg() {
   opencl-nvidia-tkg
 }
-package_opencl-nvidia-dev-tkg() {
+package_chaotic-nvidia-dev-opencl-tkg() {
   opencl-nvidia-tkg
 }
 
@@ -737,8 +649,8 @@ nvidia-egl-wayland-tkg() {
     _eglwver="1.1.4"
   fi
   pkgdesc="NVIDIA EGL Wayland library (libnvidia-egl-wayland.so.$_eglwver) for 'nvidia-utils-tkg'"
-  depends=('nvidia-utils-tkg')
-  provides=("egl-wayland" "nvidia-egl-wayland-tkg")
+  depends=('chaotic-nvidia-utils-tkg')
+  provides=("egl-wayland" "nvidia-egl-wayland-tkg" "chaotic-nvidia-egl-wayland-tkg")
   conflicts=('egl-wayland')
   cd $_pkg
 
@@ -756,10 +668,10 @@ nvidia-egl-wayland-tkg() {
     sed -i "s/Version:.*/Version: $_eglwver/g" "${pkgdir}"/usr/share/pkgconfig/wayland-eglstream-protocols.pc
     sed -i "s/Version:.*/Version: $_eglwver/g" "${pkgdir}"/usr/share/pkgconfig/wayland-eglstream.pc
 }
-package_nvidia-egl-wayland-tkg() {
+package_chaotic-nvidia-egl-wayland-tkg() {
   nvidia-egl-wayland-tkg
 }
-package_nvidia-dev-egl-wayland-tkg() {
+package_chaotic-nvidia-dev-egl-wayland-tkg() {
   nvidia-egl-wayland-tkg
 }
 
@@ -771,7 +683,7 @@ nvidia-utils-tkg() {
               'opencl-nvidia-tkg: OpenCL support'
               'xorg-server-devel: nvidia-xconfig'
               'egl-wayland-git: for alternative, more advanced Wayland library (libnvidia-egl-wayland.so)')
-  provides=("nvidia-utils=$pkgver" "nvidia-utils-tkg=$pkgver" 'vulkan-driver' 'opengl-driver' 'nvidia-libgl')
+  provides=("nvidia-utils=$pkgver" "nvidia-utils-tkg=$pkgver" "chaotic-nvidia-utils-tkg=$pkgver" 'vulkan-driver' 'opengl-driver' 'nvidia-libgl')
   conflicts=('nvidia-utils' 'nvidia-libgl')
   install=nvidia-utils-tkg.install
   cd $_pkg
@@ -910,10 +822,10 @@ nvidia-utils-tkg() {
 
     _create_links
 }
-package_nvidia-utils-tkg() {
+package_chaotic-nvidia-utils-tkg() {
   nvidia-utils-tkg
 }
-package_nvidia-dev-utils-tkg() {
+package_chaotic-nvidia-dev-utils-tkg() {
   nvidia-utils-tkg
 }
 
@@ -946,8 +858,8 @@ package_nvidia-dev-settings-tkg() {
 if [ "$_dkms" = "false" ] || [ "$_dkms" = "full" ]; then
   nvidia-tkg() {
     pkgdesc="Full NVIDIA drivers' package for all kernels on the system (drivers and shared utilities and libraries)"
-    depends=("nvidia-utils-tkg>=$pkgver" 'libglvnd')
-    provides=("nvidia=$pkgver" "nvidia-tkg>=$pkgver")
+    depends=("chaotic-nvidia-utils-tkg>=$pkgver" 'libglvnd')
+    provides=("nvidia=$pkgver" "nvidia-tkg>=$pkgver" "chaotic-nvidia-tkg>=$pkgver")
     conflicts=('nvidia-96xx' 'nvidia-173xx' 'nvidia')
     install=nvidia-tkg.install
 
@@ -964,10 +876,10 @@ if [ "$_dkms" = "false" ] || [ "$_dkms" = "full" ]; then
     echo "blacklist nouveau" |
         install -Dm644 /dev/stdin "${pkgdir}/usr/lib/modprobe.d/${pkgname}.conf"
   }
-  package_nvidia-tkg() {
+  package_chaotic-nvidia-all-tkg() {
     nvidia-tkg
   }
-  package_nvidia-dev-tkg() {
+  package_chaotic-nvidia-dev-all-tkg() {
     nvidia-tkg
   }
 fi
@@ -976,7 +888,7 @@ lib32-opencl-nvidia-tkg() {
   pkgdesc="NVIDIA's OpenCL implemention for 'lib32-nvidia-utils-tkg' "
   depends=('lib32-zlib' 'lib32-gcc-libs')
   optdepends=('opencl-headers: headers necessary for OpenCL development')
-  provides=("lib32-opencl-nvidia=$pkgver" "lib32-opencl-nvidia-tkg=$pkgver" 'lib32-opencl-driver')
+  provides=("lib32-opencl-nvidia=$pkgver" "lib32-opencl-nvidia-tkg=$pkgver" "lib32-chaotic-nvidia-opencl-tkg=$pkgver" 'lib32-opencl-driver')
   conflicts=('lib32-opencl-nvidia')
   cd $_pkg/32
 
@@ -991,18 +903,18 @@ lib32-opencl-nvidia-tkg() {
   install -d "$pkgdir"/usr/share/licenses/
   ln -s nvidia-utils/ "$pkgdir"/usr/share/licenses/lib32-opencl-nvidia
 }
-package_lib32-opencl-nvidia-tkg() {
+package_lib32-chaotic-nvidia-opencl-tkg() {
   lib32-opencl-nvidia-tkg
 }
-package_lib32-opencl-nvidia-dev-tkg() {
+package_lib32-chaotic-nvidia-dev-opencl-tkg() {
   lib32-opencl-nvidia-tkg
 }
 
 lib32-nvidia-utils-tkg() {
   pkgdesc="NVIDIA driver utilities and libraries for 'nvidia-tkg' (32-bit)"
-  depends=('lib32-zlib' 'lib32-gcc-libs' 'nvidia-utils-tkg' 'lib32-libglvnd' 'lib32-mesa' 'lib32-vulkan-icd-loader')
-  optdepends=('lib32-opencl-nvidia-tkg: OpenCL support')
-  provides=("lib32-nvidia-utils=$pkgver" "lib32-nvidia-utils-tkg=$pkgver" 'lib32-vulkan-driver' 'lib32-opengl-driver' 'lib32-nvidia-libgl')
+  depends=('lib32-zlib' 'lib32-gcc-libs' 'chaotic-nvidia-utils-tkg' 'lib32-libglvnd' 'lib32-mesa' 'lib32-vulkan-icd-loader')
+  optdepends=('lib32-chaotic-nvidia-opencl-tkg: OpenCL support')
+  provides=("lib32-nvidia-utils=$pkgver" "lib32-nvidia-utils-tkg=$pkgver" "lib32-chaotic-nvidia-utils-tkg=$pkgver" 'lib32-vulkan-driver' 'lib32-opengl-driver' 'lib32-nvidia-libgl')
   conflicts=('lib32-nvidia-utils' 'lib32-nvidia-libgl')
   cd $_pkg/32
 
@@ -1056,19 +968,20 @@ lib32-nvidia-utils-tkg() {
     mkdir -p "${pkgdir}/usr/share/licenses"
     ln -s nvidia-utils/ "${pkgdir}/usr/share/licenses/${pkgname}"
 }
-package_lib32-nvidia-utils-tkg() {
+package_lib32-chaotic-nvidia-utils-tkg() {
   lib32-nvidia-utils-tkg
 }
-package_lib32-nvidia-dev-utils-tkg() {
+package_lib32-chaotic-nvidia-dev-utils-tkg() {
   lib32-nvidia-utils-tkg
 }
 
 if [ "$_dkms" = "true" ] || [ "$_dkms" = "full" ]; then
   nvidia-dkms-tkg() {
     pkgdesc="NVIDIA kernel module sources (DKMS)"
-    depends=('dkms' "nvidia-utils-tkg>=${pkgver}" 'nvidia-libgl')
-    provides=("nvidia=${pkgver}" 'nvidia-dkms' "nvidia-dkms-tkg=${pkgver}")
+    depends=('dkms' "chaotic-nvidia-utils-tkg>=${pkgver}" 'nvidia-libgl')
+    provides=("nvidia=${pkgver}" 'nvidia-dkms' "nvidia-dkms-tkg=${pkgver}" "chaotic-nvidia-dkms-tkg=${pkgver}")
     conflicts=('nvidia')
+    optdepends=("${_target_headers[@]}")
 
     cd ${_pkg}
     install -dm 755 "${pkgdir}"/usr/{lib/modprobe.d,src}
@@ -1079,10 +992,10 @@ if [ "$_dkms" = "true" ] || [ "$_dkms" = "full" ]; then
 
     install -Dt "${pkgdir}/usr/share/licenses/${pkgname}" -m644 "${srcdir}/${_pkg}/LICENSE"
   }
-  package_nvidia-dkms-tkg() {
+  package_chaotic-nvidia-dkms-tkg() {
     nvidia-dkms-tkg
   }
-  package_nvidia-dev-dkms-tkg() {
+  package_chaotic-nvidia-dev-dkms-tkg() {
     nvidia-dkms-tkg
   }
 fi
