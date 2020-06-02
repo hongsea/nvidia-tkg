@@ -33,9 +33,9 @@ _autoaddpatch="true"
 # I want to keep pulling this part from TkG's repo, so let keep it diff friendly
 if [[ -e tkg.dev ]]; then
   msg2 "Producing dev build"
-  CONDITION="2"
+  CONDITION="1"
   _pkgname="-dev"
-  pkgrel=1
+  pkgrel=2
 else
   CONDITION="2"
   _pkgname=""
