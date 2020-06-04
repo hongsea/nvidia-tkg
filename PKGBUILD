@@ -60,7 +60,7 @@ _target_linux=(linux-{{,lts-}tkg-{pds,bmq,muqss},clear,amd,amd-raven,rt,lqx,xanm
 _target_headers=(`printf '%s\n' "${_target_linux[@]}" | awk '{print $1"-headers"}'`)
 msg2 'core/linux{,-lts}-headers needs to be installed previously to running this!'
 
-pkgname=(chaotic-nvidia${_pkgname}-{dkms,utils,egl-wayland,opencl,-settings}-tkg lib32-chaotic-nvidia${_pkgname}-{utils,opencl}-tkg)
+pkgname=(chaotic-nvidia${_pkgname}-{dkms,utils,egl-wayland,opencl,settings}-tkg lib32-chaotic-nvidia${_pkgname}-{utils,opencl}-tkg)
 pkgver=$_driver_version
 arch=('x86_64')
 url="http://www.nvidia.com/"
