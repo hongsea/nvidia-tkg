@@ -35,11 +35,11 @@ if [[ -e tkg.dev ]]; then
   msg2 "Producing dev build"
   CONDITION="1"
   _pkgname="-dev"
-  pkgrel=2
+  pkgrel=3
 else
   CONDITION="2"
   _pkgname=""
-  pkgrel=201
+  pkgrel=202
 fi
 
 # Package type selector
@@ -60,7 +60,7 @@ _target_linux=(linux-{{,lts-}tkg-{pds,bmq,muqss},clear,amd,amd-raven,rt,lqx,xanm
 _target_headers=(`printf '%s\n' "${_target_linux[@]}" | awk '{print $1"-headers"}'`)
 msg2 'core/linux{,-lts}-headers needs to be installed previously to running this!'
 
-pkgname=(chaotic-nvidia${_pkgname}-{dkms,utils,egl-wayland,opencl}-tkg lib32-chaotic-nvidia${_pkgname}-{utils,opencl}-tkg)
+pkgname=(chaotic-nvidia${_pkgname}-{dkms,utils,egl-wayland,opencl,-settings}-tkg lib32-chaotic-nvidia${_pkgname}-{utils,opencl}-tkg)
 pkgver=$_driver_version
 arch=('x86_64')
 url="http://www.nvidia.com/"
@@ -833,7 +833,7 @@ nvidia-settings-tkg() {
     pkgdesc='Tool for configuring the NVIDIA graphics driver'
     depends=("nvidia-utils-tkg>=${pkgver}" 'gtk3')
     provides=("nvidia-settings=${pkgver}" "nvidia-settings-tkg=${pkgver}")
-    conflicts=('nvidia-settings')
+    conflicts=('nvidia-settings' 'nvidia-settings-tkg')
 
     cd "$_pkg"
 
@@ -848,10 +848,10 @@ nvidia-settings-tkg() {
     # license
     install -D -m644 LICENSE -t "${pkgdir}/usr/share/licenses/${pkgname}"
 }
-package_nvidia-settings-tkg() {
+package_chaotic-nvidia-settings-tkg() {
   nvidia-settings-tkg
 }
-package_nvidia-dev-settings-tkg() {
+package_chaotic-nvidia-dev-settings-tkg() {
   nvidia-settings-tkg
 }
 
